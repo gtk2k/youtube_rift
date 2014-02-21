@@ -1,69 +1,52 @@
 // バックグラウンド
-var dicRiftReady = {};
+var dicState = {};
+var dicPageStatus = {};
 
-//chrome.extension.onConnect.addListener(function (port) {
-//    console.log(port.name);
-//    console.assert(port.name == 'youtuberift');
-//    port.onMessage.addListener(function (msg) {
-//        chrome.tabs.query({ 'active': true, 'lastFocusedWindow': true }, function (tabs) {
-//            if (msg.check) {
-//                dicRiftReady[tabs[0].id] = msg.riftReady;
-//                if (msg.riftReady) {
-//                    chrome.pageAction.show(tabs[0].id);
-//                    chrome.pageAction.onClicked.addListener(function (tab) {
-//                        if (riftReady) {
-//                            port.postMessage(tab.id, { pageAction: 'click' });
-//                        }
-//                    });
-//                } else {
-//                    chrome.pageAction.hide(tabs[0].id);
-//                }
-//            } else {
-//                riftReady = dicRiftReady[tabs[0].id] || false;
-//                if (riftReady) {
-//                    chrome.pageAction.setIcon({
-//                        path: response.rifting ? "24_on.png" : "24_off.png",
-//                        tabId: tabs[0].id
-//                    });
-//                } else {
-//                    chrome.pageAction.setIcon({
-//                        path: "24_disable.png",
-//                        tabId: tabs[0].id
-//                    });
-//                }
-//            }
-//        });
-//    });
-//});
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
+    if (changeInfo && changeInfo.status == 'complete') {
+        dicState[tabId] = 0;
+        var oldVideoId = null;
+        if (dicPageStatus[tabId]) {
+            oldVideoId = dicPageStatus[tabId].videoId;
+        }
+        delete dicPageStatus[tabId];
+        console.log('Tab updated: ' + tab.url);
+        chrome.tabs.sendMessage(tabId, { check: true, state: dicState[tabId], tabId: tabId, oldVideoId: oldVideoId });
+    }
+});
 
-chrome.webNavigation.onCompleted.addListener(function (o) {
-    console.log(o.url);
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, { check: true }, function (response) {
-            if (response) {
-                dicRiftReady[tabs[0].id] = response.riftReady;
-                if (response.riftReady) {
-                    chrome.pageAction.show(tabs[0].id);
-                    chrome.pageAction.setIcon({
-                        path: response.riftReady ? response.rifting ? "24_on.png" : "24_off.png" : "24_disable.png",
-                        tabId: tabs[0].id
-                    });
-                    chrome.pageAction.onClicked.addListener(function (tab) {
-                        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-                            if (dicRiftReady[tabs[0].id]) {
-                                chrome.tabs.sendMessage(tabs[0].id, { pageAction: 'click' }, function (response) {
-                                    chrome.pageAction.setIcon({
-                                        path: response.rifting ? "24_on.png" : "24_off.png",
-                                        tabId: tabs[0].id
-                                    });
-                                });
-                            }
-                        });
-                    });
-                } else {
-                    chrome.pageAction.hide(tabs[0].id);
-                }
-            }
-        });
+chrome.extension.onMessage.addListener(function (msg) {
+    dicPageStatus[msg.tabId] = {};
+    Object.keys(msg).forEach(function (key) {
+        dicPageStatus[msg.tabId][key] = msg[key];
     });
-}, { url: [{ urlPrefix: 'http://www.youtube.com/' }, { urlPrefix: 'https://www.youtube.com/' }] });
+    setIcon(msg, msg.tabId);
+});
+
+chrome.webNavigation.onBeforeNavigate.addListener(function (tab) {
+    delete dicPageStatus[tab.tabId];
+    console.log('onBeforeNavigate', tab.tabId);
+    chrome.tabs.sendMessage(tab.tabId, { stop: true });
+}, { url: [{ urlPrefix: 'http://www.youtube.com/watch' }, { urlPrefix: 'https://www.youtube.com/watch' }] });
+
+chrome.pageAction.onClicked.addListener(function (tab) {
+    chrome.tabs.sendMessage(tab.id, { pageAction: 'click', tabId: tab.id, state: dicState[tab.id] });
+});
+
+function setIcon(response, tabId) {
+    if (response) {
+        console.log(response.playerType);
+        chrome.pageAction.show(tabId);
+        if (!response.riftReady) {
+            chrome.pageAction.setIcon({ path: "64_disable.png", tabId: tabId });
+        } else if (response.rifting) {
+            chrome.pageAction.setIcon({ path: "64_on.png", tabId: tabId });
+        } else {
+            if (response.playerType === 'html5') {
+                chrome.pageAction.setIcon({ path: "64_off.png", tabId: tabId });
+            } else if (response.playerType === 'flash' && response.threedMovie) {
+                chrome.pageAction.setIcon({ path: "64_yellow.png", tabId: tabId });
+            }
+        }
+    }
+}

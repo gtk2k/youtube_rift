@@ -1,10 +1,13 @@
 {
   "manifest_version": 2,
   "name": "Youtube Rift",
-  "version": "0.0.2",
-  "description": "YoutubeをOculus Riftで見れるようにするプラグイン",
+  "version": "0.0.6",
+  "description": "YoutubeをOculus Riftで見れるようにする拡張機能",
+  "icons":{
+	"64": "64_on.png"
+  }, 
   "page_action":{
-    "default_icon": "24_disable.png"
+    "default_icon": "64_disable.png"
   },
   "background": {
     "matches": ["http://www.youtube.com/watch*", "https://www.youtube.com/watch*"],
@@ -20,7 +23,8 @@
 		  "RiftThree.js",
           "vr.js",
           "OculusRiftEffect.js",
-		  "youtube_rift.js"
+		  "youtube_rift.js",
+		  "yr_messenger.js"
 	  ],
 	  "run_at": "document_end"
 	}
@@ -28,12 +32,12 @@
   "permissions":[
     "tabs",
 	"webNavigation",
-    "http://www.youtube.com/*",
-    "https://www.youtube.com/*"
+    "http://www.youtube.com/watch*",
+    "https://www.youtube.com/watch*"
   ],
   "web_accessible_resources": [
-    "24_disable.png",
-    "24_off.png",
-    "24_on.png"
+    "64_disable.png",
+    "64_off.png",
+    "64_on.png"
   ]
 }
